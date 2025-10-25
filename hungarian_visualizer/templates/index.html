@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hungarian Method Visualizer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-project-diagram"></i> Hungarian Method Visualizer</h1>
+                <div class="header-controls">
+                    <button id="theme-toggle" class="btn btn-icon" title="Toggle Theme">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button id="help-btn" class="btn btn-icon" title="Help">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-cog"></i> Configuration</h3>
+                    
+                    <!-- Matrix Size -->
+                    <div class="form-group">
+                        <label for="matrix-size">Matrix Size:</label>
+                        <select id="matrix-size" class="form-control">
+                            <option value="3">3×3</option>
+                            <option value="4" selected>4×4</option>
+                            <option value="5">5×5</option>
+                            <option value="6">6×6</option>
+                            <option value="7">7×7</option>
+                            <option value="8">8×8</option>
+                        </select>
+                    </div>
+
+                    <!-- Matrix Input Options -->
+                    <div class="form-group">
+                        <label>Matrix Input:</label>
+                        <div class="btn-group">
+                            <button id="load-example" class="btn btn-secondary">
+                                <i class="fas fa-book"></i> Example
+                            </button>
+                            <button id="generate-random" class="btn btn-secondary">
+                                <i class="fas fa-dice"></i> Random
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Random Generation Settings -->
+                    <div id="random-settings" class="form-group" style="display: none;">
+                        <label>Value Range:</label>
+                        <div class="range-inputs">
+                            <input type="number" id="min-val" value="1" min="0" max="50" class="form-control">
+                            <span>to</span>
+                            <input type="number" id="max-val" value="20" min="1" max="100" class="form-control">
+                        </div>
+                    </div>
+
+                    <!-- Solve Controls -->
+                    <div class="form-group">
+                        <button id="solve-btn" class="btn btn-primary btn-large">
+                            <i class="fas fa-play"></i> Solve Algorithm
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Algorithm Theory -->
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-book-open"></i> Algorithm Theory</h3>
+                    <div class="theory-content">
+                        <h4>Hungarian Method</h4>
+                        <p>The Hungarian algorithm solves the assignment problem in polynomial time O(n³).</p>
+                        
+                        <h4>Key Steps:</h4>
+                        <ol>
+                            <li><strong>Row Reduction:</strong> Subtract row minimums</li>
+                            <li><strong>Column Reduction:</strong> Subtract column minimums</li>
+                            <li><strong>Line Coverage:</strong> Cover zeros with minimum lines</li>
+                            <li><strong>Matrix Adjustment:</strong> Create new zeros</li>
+                            <li><strong>Assignment:</strong> Extract optimal solution</li>
+                        </ol>
+
+                        <h4>Mathematical Foundation:</h4>
+                        <p>Based on König's theorem and LP duality. The algorithm maintains optimality while creating the structure needed for assignment extraction.</p>
+                    </div>
+                </div>
+
+                <!-- Export Options -->
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-download"></i> Export</h3>
+                    <div class="btn-group vertical">
+                        <button id="export-json" class="btn btn-outline" disabled>
+                            <i class="fas fa-file-code"></i> JSON Data
+                        </button>
+                        <button id="export-csv" class="btn btn-outline" disabled>
+                            <i class="fas fa-file-csv"></i> CSV Results
+                        </button>
+                        <button id="export-pdf" class="btn btn-outline" disabled>
+                            <i class="fas fa-file-pdf"></i> PDF Report
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Matrix Input Panel -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-table"></i> Cost Matrix Input</h2>
+                        <div class="panel-controls">
+                            <button id="validate-matrix" class="btn btn-sm btn-outline">
+                                <i class="fas fa-check"></i> Validate
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-content">
+                        <div id="matrix-input-container">
+                            <!-- Matrix input grid will be generated here -->
+                        </div>
+                        <div id="validation-messages"></div>
+                    </div>
+                </section>
+
+                <!-- Step Controls -->
+                <section class="panel" id="step-controls-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-step-forward"></i> Step-by-Step Navigation</h2>
+                    </div>
+                    <div class="panel-content">
+                        <div class="step-controls">
+                            <button id="first-step" class="btn btn-icon" title="First Step">
+                                <i class="fas fa-step-backward"></i>
+                            </button>
+                            <button id="prev-step" class="btn btn-icon" title="Previous Step">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button id="play-pause" class="btn btn-icon" title="Play/Pause">
+                                <i class="fas fa-play"></i>
+                            </button>
+                            <button id="next-step" class="btn btn-icon" title="Next Step">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                            <button id="last-step" class="btn btn-icon" title="Last Step">
+                                <i class="fas fa-step-forward"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="step-info">
+                            <div class="progress-bar">
+                                <div id="progress-fill" class="progress-fill"></div>
+                            </div>
+                            <div class="step-counter">
+                                <span id="current-step">0</span> / <span id="total-steps">0</span>
+                            </div>
+                        </div>
+
+                        <div class="speed-control">
+                            <label>Animation Speed:</label>
+                            <input type="range" id="speed-slider" min="1" max="10" value="5" class="slider">
+                            <span id="speed-value">5</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Matrix Visualization -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-eye"></i> Matrix Visualization</h2>
+                        <div class="panel-controls">
+                            <button id="toggle-annotations" class="btn btn-sm btn-outline active">
+                                <i class="fas fa-tags"></i> Annotations
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-content">
+                        <div id="matrix-visualization">
+                            <div id="matrix-display"></div>
+                            <div id="matrix-annotations"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step Explanation -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-lightbulb"></i> Step Explanation</h2>
+                    </div>
+                    <div class="panel-content">
+                        <div id="step-explanation">
+                            <p>Load a matrix and start the algorithm to see step-by-step explanations.</p>
+                        </div>
+                        <div id="math-explanation">
+                            <!-- Mathematical formulas will be rendered here -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Analytics Dashboard -->
+                <section class="panel" id="analytics-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-chart-line"></i> Analytics Dashboard</h2>
+                        <div class="panel-controls">
+                            <button id="refresh-charts" class="btn btn-sm btn-outline">
+                                <i class="fas fa-sync"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-content">
+                        <div class="analytics-grid">
+                            <div class="metric-card">
+                                <h4>Execution Time</h4>
+                                <div class="metric-value" id="exec-time">-</div>
+                                <div class="metric-unit">seconds</div>
+                            </div>
+                            <div class="metric-card">
+                                <h4>Total Steps</h4>
+                                <div class="metric-value" id="total-steps-metric">-</div>
+                                <div class="metric-unit">steps</div>
+                            </div>
+                            <div class="metric-card">
+                                <h4>Final Cost</h4>
+                                <div class="metric-value" id="final-cost">-</div>
+                                <div class="metric-unit">units</div>
+                            </div>
+                            <div class="metric-card">
+                                <h4>Efficiency</h4>
+                                <div class="metric-value" id="efficiency">-</div>
+                                <div class="metric-unit">%</div>
+                            </div>
+                            <div class="metric-card">
+                                <h4>Iterations</h4>
+                                <div class="metric-value" id="iterations">-</div>
+                                <div class="metric-unit">cycles</div>
+                            </div>
+                        </div>
+                        
+                        <div class="charts-container">
+                            <div class="chart-panel">
+                                <h4>Cost Reduction</h4>
+                                <div id="cost-chart"></div>
+                            </div>
+                            <div class="chart-panel">
+                                <h4>Zero Density Evolution</h4>
+                                <div id="density-chart"></div>
+                            </div>
+                            <div class="chart-panel">
+                                <h4>Matrix Heatmap</h4>
+                                <div id="heatmap-chart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Processing algorithm...</p>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Hungarian Method Visualizer - Help</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h3>Getting Started</h3>
+                <ol>
+                    <li>Select matrix size (3×3 to 8×8)</li>
+                    <li>Load an example or generate random matrix</li>
+                    <li>Manually edit values if needed</li>
+                    <li>Click "Solve Algorithm" to start</li>
+                    <li>Use step controls to navigate through solution</li>
+                </ol>
+
+                <h3>Features</h3>
+                <ul>
+                    <li><strong>Step Navigation:</strong> Move through algorithm steps</li>
+                    <li><strong>Visual Annotations:</strong> See highlighted changes</li>
+                    <li><strong>Mathematical Explanations:</strong> Understand each step</li>
+                    <li><strong>Analytics:</strong> Performance metrics and charts</li>
+                    <li><strong>Export:</strong> Save results in multiple formats</li>
+                </ul>
+
+                <h3>Keyboard Shortcuts</h3>
+                <ul>
+                    <li><kbd>←</kbd> Previous step</li>
+                    <li><kbd>→</kbd> Next step</li>
+                    <li><kbd>Space</kbd> Play/Pause</li>
+                    <li><kbd>Home</kbd> First step</li>
+                    <li><kbd>End</kbd> Last step</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/matrix-input.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/visualization.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/analytics.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/export.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bipartite-simulator.js') }}"></script>
+    
+    <!-- Debug script to test export buttons -->
+    <script>
+        console.log('🔧 Debug script loaded');
+        
+        // Test function to manually enable export buttons
+        window.testEnableExports = function() {
+            console.log('🧪 Testing export button enable...');
+            
+            const buttons = [
+                document.getElementById('export-json'),
+                document.getElementById('export-csv'),
+                document.getElementById('export-pdf')
+            ];
+            
+            buttons.forEach((btn, i) => {
+                if (btn) {
+                    console.log(`Button ${i} found:`, btn.id);
+                    btn.disabled = false;
+                    btn.style.setProperty('background-color', '#28a745', 'important');
+                    btn.style.setProperty('color', '#ffffff', 'important');
+                    btn.style.setProperty('opacity', '1', 'important');
+                    btn.style.setProperty('cursor', 'pointer', 'important');
+                    btn.classList.remove('disabled');
+                    console.log(`Button ${i} enabled!`);
+                } else {
+                    console.error(`Button ${i} NOT FOUND!`);
+                }
+            });
+        };
+        
+        // Auto-test after 3 seconds
+        setTimeout(() => {
+            console.log('🔍 Auto-testing export buttons in 3 seconds...');
+            window.testEnableExports();
+        }, 3000);
+        
+        // Also add a manual trigger for after algorithm completion
+        document.addEventListener('DOMContentLoaded', function() {
+            // Override the app's enable function
+            if (window.hungarianApp) {
+                const originalEnable = window.hungarianApp.enableExportButtons;
+                window.hungarianApp.enableExportButtons = function() {
+                    console.log('🔧 Overridden enableExportButtons called');
+                    originalEnable.call(this);
+                    setTimeout(() => {
+                        window.testEnableExports();
+                    }, 100);
+                };
+            }
+        });
+    </script>
+</body>
+</html>
